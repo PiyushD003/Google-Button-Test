@@ -38,19 +38,20 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ query }) => {
   useEffect(() => {
     if (isInApp && phoneType && !hasRedirected) {
       const timer = setTimeout(() => {
-        const currentUrl = window.location;
-        const cleanHostPath = currentUrl.host + currentUrl.pathname + currentUrl.search;
+        const encodedQuery = encodeURIComponent(query);
 
         if (phoneType === 'android') {
-          window.location.href = `intent://${cleanHostPath}?redirected=true#Intent;scheme=https;package=com.android.chrome;end`;
+          // Redirect to Chrome using intent on Android
+          window.location.href = `intent://www.google.com/search?q=${encodedQuery}&redirected=true#Intent;scheme=https;package=com.android.chrome;end`;
         } else if (phoneType === 'ios') {
-          window.location.href = `x-safari-https://${cleanHostPath}?redirected=true`;
+          // Redirect to Safari using x-safari on iOS
+          window.location.href = `x-safari-https://www.google.com/search?q=${encodedQuery}&redirected=true`;
         }
-      }, 2000);
+      }, 2000); // Wait for 2 seconds
 
       return () => clearTimeout(timer);
     }
-  }, [isInApp, phoneType, hasRedirected]);
+  }, [isInApp, phoneType, hasRedirected, query]);
 
   const handleSearch = (query: string): void => {
     const encodedQuery = encodeURIComponent(query);
