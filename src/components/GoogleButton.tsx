@@ -1,6 +1,7 @@
+// GoogleButton.tsx
 import React, { useEffect, useState } from 'react';
-import InAppSpy from 'inapp-spy'; // For detecting in-app browsers
-import Bowser from 'bowser'; // For parsing user agent strings
+import InAppSpy from 'inapp-spy'; // Install with: npm i inapp-spy
+import Bowser from 'bowser';      // Install with: npm i bowser
 
 interface GoogleButtonProps {
   query: string;
@@ -12,15 +13,16 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ query }) => {
   const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    const { isInApp: detectedInApp, ua } = InAppSpy();
-    setIsInApp(detectedInApp);
+    const { isInApp: inAppResult, ua } = InAppSpy();
+    setIsInApp(inAppResult);
 
-    if (detectedInApp) {
+    if (inAppResult) {
       const parser = Bowser.getParser(ua);
-      const osName = parser.getOSName();
-      if (osName === 'Android') {
+      const os = parser.getOSName();
+
+      if (os === 'Android') {
         setPhoneType('android');
-      } else if (osName === 'iOS') {
+      } else if (os === 'iOS') {
         setPhoneType('ios');
       }
     }
@@ -33,28 +35,38 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ query }) => {
     }
   }, []);
 
+  useEffect(() => {
+    if (isInApp && phoneType && !hasRedirected) {
+      const timer = setTimeout(() => {
+        const currentUrl = window.location;
+        const cleanHostPath = currentUrl.host + currentUrl.pathname + currentUrl.search;
+
+        if (phoneType === 'android') {
+          window.location.href = `intent://${cleanHostPath}?redirected=true#Intent;scheme=https;package=com.android.chrome;end`;
+        } else if (phoneType === 'ios') {
+          window.location.href = `x-safari-https://${cleanHostPath}?redirected=true`;
+        }
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isInApp, phoneType, hasRedirected]);
+
   const handleSearch = (query: string): void => {
     const encodedQuery = encodeURIComponent(query);
     const googleURL = `https://www.google.com/search?q=${encodedQuery}`;
+    window.open(googleURL, '_blank', 'noopener,noreferrer');
+  };
 
-    if (isInApp && phoneType && !hasRedirected) {
-      setTimeout(() => {
-        if (phoneType === 'android') {
-          window.location.href = `intent:${googleURL}?redirected=true#Intent;scheme=https;package=com.android.chrome;end`;
-        } else if (phoneType === 'ios') {
-          // Note: iOS does not officially support a URL scheme to launch Safari directly.
-          // This is a placeholder and may not work as intended.
-          window.location.href = `x-safari-${googleURL}?redirected=true`;
-        }
-      }, 2000); // Delay to allow in-app browser detection
-    } else {
-      window.open(googleURL, '_blank', 'noopener,noreferrer');
+  const handleButtonClick = () => {
+    if (!isInApp) {
+      handleSearch(query);
     }
   };
 
   return (
     <div style={{ margin: '20px', justifyContent: 'center', display: 'flex' }}>
-      <button onClick={() => handleSearch(query)}>Search Google</button>
+      <button onClick={handleButtonClick}>Search Google</button>
     </div>
   );
 };
