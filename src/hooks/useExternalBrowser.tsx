@@ -1,53 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import InAppSpy from 'inapp-spy';
 import Bowser from 'bowser';
 
 export const useExternalBrowser = () => {
-  const [isInApp, setIsInApp] = useState(false);
-  const [phoneType, setPhoneType] = useState<'android' | 'ios' | undefined>(undefined);
+  const openInExternalBrowser = useCallback((url: string) => {
+    const { isInApp, ua } = InAppSpy();
+    
+    if (!isInApp) {
+      // Not in an in-app browser, open in new tab
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
 
-  useEffect(() => {
-    const { isInApp: inAppResult, ua } = InAppSpy();
-    setIsInApp(inAppResult);
+    const parser = Bowser.getParser(ua);
+    const os = parser.getOSName().toLowerCase();
+    
+    const urlObj = new URL(url);
+    urlObj.searchParams.set('redirected', 'true');
 
-    if (inAppResult) {
-      const parser = Bowser.getParser(ua);
-      const os = parser.getOSName().toLowerCase();
-      
-      if (os.includes('android')) {
-        setPhoneType('android');
-      } else if (os.includes('ios')) {
-        setPhoneType('ios');
-      }
+    if (os.includes('android')) {
+      window.location.href = `intent://${urlObj.host}${urlObj.pathname}?${urlObj.searchParams.toString()}#Intent;scheme=https;package=com.android.chrome;end`;
+    } else if (os.includes('ios')) {
+      window.location.href = `x-safari-${urlObj.toString()}`;
     }
   }, []);
 
-  const openInExternalBrowser = (url: string) => {
-    if (isInApp) {
-      if (phoneType === 'android') {
-        // For Android
-        const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-        window.location.href = intentUrl;
-      } else if (phoneType === 'ios') {
-        // For iOS
-        const newUrl = url.startsWith('http') ? url : `https://${url}`;
-        window.location.href = newUrl;
-        
-        // Fallback for iOS if the above doesn't work
-        setTimeout(() => {
-          window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
-        }, 500);
-      }
-    } else {
-      // For desktop or when not in an in-app browser
-      try {
-        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-        if (newWindow) newWindow.opener = null;
-      } catch (e) {
-        window.location.href = url;
-      }
-    }
-  };
-
-  return { openInExternalBrowser, isInApp, phoneType };
+  return { openInExternalBrowser };
 };
