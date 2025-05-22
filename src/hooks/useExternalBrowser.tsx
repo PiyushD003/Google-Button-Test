@@ -12,26 +12,40 @@ export const useExternalBrowser = () => {
 
     if (inAppResult) {
       const parser = Bowser.getParser(ua);
-      const os = parser.getOSName();
-
-      if (os === 'Android') {
+      const os = parser.getOSName().toLowerCase();
+      
+      if (os.includes('android')) {
         setPhoneType('android');
-      } else if (os === 'iOS') {
+      } else if (os.includes('ios')) {
         setPhoneType('ios');
       }
     }
   }, []);
 
   const openInExternalBrowser = (url: string) => {
-    if (!isInApp || !phoneType) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    if (phoneType === 'android') {
-      window.location.href = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
-    } else if (phoneType === 'ios') {
-      window.location.href = `x-safari-${url}`;
+    if (isInApp) {
+      if (phoneType === 'android') {
+        // For Android
+        const intentUrl = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+        window.location.href = intentUrl;
+      } else if (phoneType === 'ios') {
+        // For iOS
+        const newUrl = url.startsWith('http') ? url : `https://${url}`;
+        window.location.href = newUrl;
+        
+        // Fallback for iOS if the above doesn't work
+        setTimeout(() => {
+          window.location.href = `googlechrome://${url.replace(/^https?:\/\//, '')}`;
+        }, 500);
+      }
+    } else {
+      // For desktop or when not in an in-app browser
+      try {
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        if (newWindow) newWindow.opener = null;
+      } catch (e) {
+        window.location.href = url;
+      }
     }
   };
 
