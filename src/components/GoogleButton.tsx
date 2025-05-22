@@ -1,7 +1,7 @@
 // GoogleButton.tsx
 import React, { useEffect, useState } from 'react';
-import InAppSpy from 'inapp-spy'; // Install with: npm i inapp-spy
-import Bowser from 'bowser';      // Install with: npm i bowser
+import InAppSpy from 'inapp-spy'; // npm install inapp-spy
+import Bowser from 'bowser';      // npm install bowser
 
 interface GoogleButtonProps {
   query: string;
@@ -10,7 +10,6 @@ interface GoogleButtonProps {
 const GoogleButton: React.FC<GoogleButtonProps> = ({ query }) => {
   const [isInApp, setIsInApp] = useState(false);
   const [phoneType, setPhoneType] = useState<'android' | 'ios' | undefined>(undefined);
-  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     const { isInApp: inAppResult, ua } = InAppSpy();
@@ -26,42 +25,26 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ query }) => {
         setPhoneType('ios');
       }
     }
-
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('redirected') === 'true') {
-      setHasRedirected(true);
-      url.searchParams.delete('redirected');
-      window.history.replaceState({}, '', url.toString());
-    }
   }, []);
 
-  useEffect(() => {
-    if (isInApp && phoneType && !hasRedirected) {
-      const timer = setTimeout(() => {
-        const encodedQuery = encodeURIComponent(query);
-
-        if (phoneType === 'android') {
-          // Redirect to Chrome using intent on Android
-          window.location.href = `intent://www.google.com/search?q=${encodedQuery}&redirected=true#Intent;scheme=https;package=com.android.chrome;end`;
-        } else if (phoneType === 'ios') {
-          // Redirect to Safari using x-safari on iOS
-          window.location.href = `x-safari-https://www.google.com/search?q=${encodedQuery}&redirected=true`;
-        }
-      }, 2000); // Wait for 2 seconds
-
-      return () => clearTimeout(timer);
-    }
-  }, [isInApp, phoneType, hasRedirected, query]);
-
-  const handleSearch = (query: string): void => {
+  const redirectToExternalBrowser = () => {
     const encodedQuery = encodeURIComponent(query);
-    const googleURL = `https://www.google.com/search?q=${encodedQuery}`;
-    window.open(googleURL, '_blank', 'noopener,noreferrer');
+
+    if (phoneType === 'android') {
+      window.location.href = `intent://www.google.com/search?q=${encodedQuery}#Intent;scheme=https;package=com.android.chrome;end`;
+    } else if (phoneType === 'ios') {
+      window.location.href = `x-safari-https://www.google.com/search?q=${encodedQuery}`;
+    }
   };
 
   const handleButtonClick = () => {
-    if (!isInApp) {
-      handleSearch(query);
+    const encodedQuery = encodeURIComponent(query);
+    const googleURL = `https://www.google.com/search?q=${encodedQuery}`;
+
+    if (isInApp && phoneType) {
+      redirectToExternalBrowser();
+    } else {
+      window.open(googleURL, '_blank', 'noopener,noreferrer');
     }
   };
 
